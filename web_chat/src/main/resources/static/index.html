@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.development.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.22.9/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1.6.1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const LoginPage = ({ onLogin }) => {
+        const [username, setUsername] = useState('');
+        const [password, setPassword] = useState('');
+
+        const handleLogin = async () => {
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+                if (data.token) {
+                    localStorage.setItem('token', data.token);
+                    onLogin(username);
+                }
+            } catch (error) {
+                console.error('Login failed:', error);
+            }
+        };
+
+        return (
+            <div className="flex items-center justify-center h-screen bg-gray-100">
+                <div className="bg-white p-6 rounded shadow-md">
+                    <h2 className="text-2xl mb-4">Login</h2>
+                    <input
+                        type="text"
+                        placeholder="Username"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        className="w-full p-2 mb-2 border rounded"
+                    />
+                    <input
+                        type="password"
+                        placeholder="Password"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full p-2 mb-2 border rounded"
+                    />
+                    <button
+                        onClick={handleLogin}
+                        className="w-full bg-blue-500 text-white p-2 rounded"
+                    >
+                        Login
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const ChatPage = ({ username }) => {
+        const [users, setUsers] = useState([]);
+        const [selectedUser, setSelectedUser] = useState(null);
+        const [messages, setMessages] = useState([]);
+        const [message, setMessage] = useState('');
+        const [stompClient, setStompClient] = useState(null);
+
+        useEffect(() => {
+            // Fetch users
+            fetch('/api/users', {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            })
+                .then(res => res.json())
+                .then(data => setUsers(data.filter(u => u.username !== username)));
+
+            // Setup WebSocket
+            const socket = new SockJS('/chat');
+            const client = Stomp.over(socket);
+            client.connect({}, () => {
+                client.subscribe('/topic/messages', (msg) => {
+                    const message = JSON.parse(msg.body);
+                    if (
+                        (message.senderId === username && message.recipientId === selectedUser?.id) ||
+                        (message.senderId === selectedUser?.id && message.recipientId === username)
+                    ) {
+                        setMessages(prev => [...prev, message]);
+                    }
+                });
+            });
+            setStompClient(client);
+
+            return () => client.disconnect();
+        }, [username, selectedUser]);
+
+        const sendMessage = () => {
+            if (stompClient && message && selectedUser) {
+                const msg = {
+                    senderId: username,
+                    recipientId: selectedUser.id,
+                    content: message,
+                    timestamp: new Date().toISOString()
+                };
+                stompClient.send('/app/sendMessage', {}, JSON.stringify(msg));
+                setMessages(prev => [...prev, msg]);
+                setMessage('');
+            }
+        };
+
+        return (
+            <div className="flex h-screen">
+                <div className="w-1/4 bg-gray-200 p-4">
+                    <h2 className="text-xl mb-4">Users</h2>
+                    {users.map(user => (
+                        <div
+                            key={user.id}
+                            className={`p-2 cursor-pointer ${selectedUser?.id === user.id ? 'bg-blue-200' : ''}`}
+                            onClick={() => setSelectedUser(user)}
+                        >
+                            {user.username}
+                        </div>
+                    ))}
+                </div>
+                <div className="w-3/4 p-4">
+                    {selectedUser ? (
+                        <>
+                            <h2 className="text-xl mb-4">Chat with {selectedUser.username}</h2>
+                            <div className="h-3/4 overflow-y-auto border p-2">
+                                {messages.map((msg, index) => (
+                                    <div key={index} className={msg.senderId === username ? 'text-right' : ''}>
+                                        <p>{msg.content}</p>
+                                        <small>{new Date(msg.timestamp).toLocaleTimeString()}</small>
+                                    </div>
+                                ))}
+                            </div>
+                            <div className="mt-4">
+                                <input
+                                    type="text"
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    className="w-3/4 p-2 border rounded"
+                                />
+                                <button
+                                    onClick={sendMessage}
+                                    className="ml-2 bg-blue-500 text-white p-2 rounded"
+                                >
+                                    Send
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <p>Select a user to start chatting</p>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const App = () => {
+        const [username, setUsername] = useState(null);
+
+        return username ? <ChatPage username={username} /> : <LoginPage onLogin={setUsername} />;
+    };
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+</script>
+</body>
+</html>

@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 
-function ChatPage({ username }) {
+function ChatPage() {
     const API_BASE_URL = 'http://localhost:8080';
+    const username = localStorage.getItem('username');
     const [users, setUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
-    const [messages, setMessages] = useState([]);
+    const [messagesByUser, setMessagesByUser] = useState({});
     const [message, setMessage] = useState('');
     const [stompClient, setStompClient] = useState(null);
     const [userId, setUserId] = useState(null);
@@ -40,11 +41,10 @@ function ChatPage({ username }) {
             })
             .then((data) => {
                 console.log('Raw users data:', data);
-                // Временная обработка строкового формата
                 const formattedUsers = Array.isArray(data)
-                    ? data.map((item, index) => {
+                    ? data.map((item) => {
                         if (typeof item === 'string') {
-                            return { id: index + 1, username: item }; // Фиктивный ID
+                            return { id: item, username: item };
                         }
                         return item;
                     })
@@ -65,11 +65,18 @@ function ChatPage({ username }) {
                 client.subscribe('/topic/messages', (msg) => {
                     const message = JSON.parse(msg.body);
                     console.log('Received message:', message);
-                    if (
-                        (Number(message.senderId) === Number(userId) && Number(message.recipientId) === Number(selectedUser?.id)) ||
-                        (Number(message.senderId) === Number(selectedUser?.id) && Number(message.recipientId) === Number(userId))
-                    ) {
-                        setMessages((prev) => [...prev, message]);
+                    // Добавляем только сообщения от других пользователей
+                    if (Number(message.senderId) !== Number(userId)) {
+                        const recipientId =
+                            Number(message.senderId) === Number(userId)
+                                ? Number(message.recipientId)
+                                : Number(message.senderId);
+                        setMessagesByUser((prev) => ({
+                            ...prev,
+                            [recipientId]: [...(prev[recipientId] || []), message],
+                        }));
+                    } else {
+                        console.log('Skipped own message:', message);
                     }
                 });
             },
@@ -87,7 +94,7 @@ function ChatPage({ username }) {
             console.log('Disconnecting WebSocket');
             client.deactivate();
         };
-    }, [userId, selectedUser]);
+    }, [userId]);
 
     const sendMessage = () => {
         if (stompClient && message && selectedUser && userId) {
@@ -102,68 +109,88 @@ function ChatPage({ username }) {
                 destination: '/app/sendMessage',
                 body: JSON.stringify(msg),
             });
-            setMessages((prev) => [...prev, msg]);
+            // Добавляем собственное сообщение локально
+            setMessagesByUser((prev) => ({
+                ...prev,
+                [selectedUser.id]: [...(prev[selectedUser.id] || []), msg],
+            }));
             setMessage('');
         } else {
             console.warn('Cannot send message: missing', { stompClient, message, selectedUser, userId });
         }
     };
 
-    console.log('Rendering ChatPage with users:', users, 'selectedUser:', selectedUser);
+    const currentMessages = selectedUser ? messagesByUser[selectedUser.id] || [] : [];
+
+    console.log('Rendering ChatPage with users:', users, 'selectedUser:', selectedUser, 'currentMessages:', currentMessages);
 
     return (
         <div className="chat-container">
-            <div className="user-panel">
-                <h2>Users</h2>
-                {users.length === 0 ? (
-                    <p>No users available</p>
-                ) : (
-                    users.map((user) => (
-                        <div
-                            key={user.id}
-                            className={`user-item ${selectedUser?.id === user.id ? 'selected' : ''}`}
-                            onClick={() => {
-                                console.log('Selected user:', user);
-                                setSelectedUser(user);
-                            }}
-                        >
-                            {user.username}
-                        </div>
-                    ))
-                )}
-            </div>
-            <div className="chat-panel">
-                {selectedUser ? (
-                    <>
-                        <h2>Chat with {selectedUser.username}</h2>
-                        <div className="messages">
-                            {messages.length === 0 ? (
-                                <p>No messages yet</p>
+            <div className="container-fluid h-100">
+                <div className="row h-100">
+                    <div className="col-3 bg-light border-end p-0">
+                        <h4 className="p-3 mb-0 bg-primary text-white">Users</h4>
+                        <div className="list-group list-group-flush">
+                            {users.length === 0 ? (
+                                <div className="list-group-item">No users available</div>
                             ) : (
-                                messages.map((msg, index) => (
-                                    <div
-                                        key={index}
-                                        className={Number(msg.senderId) === Number(userId) ? 'message-right' : 'message-left'}
+                                users.map((user) => (
+                                    <button
+                                        key={user.id}
+                                        type="button"
+                                        className={`list-group-item list-group-item-action ${selectedUser?.id === user.id ? 'active' : ''}`}
+                                        onClick={() => {
+                                            console.log('Selected user:', user);
+                                            setSelectedUser(user);
+                                        }}
                                     >
-                                        <p>{msg.content}</p>
-                                        <small>{new Date(msg.timestamp).toLocaleTimeString()}</small>
-                                    </div>
+                                        {user.username}
+                                    </button>
                                 ))
                             )}
                         </div>
-                        <div className="message-input">
-                            <input
-                                type="text"
-                                value={message}
-                                onChange={(e) => setMessage(e.target.value)}
-                                placeholder="Type a message..."
-                            />
-                            <button onClick={sendMessage}>Send</button>
-                        </div>
-                    </>
-                ) : (
-                    <p>Select a user to start chatting</p>
-                )}
+                    </div>
+                    <div className="col-9 p-0 d-flex flex-column">
+                        {selectedUser ? (
+                            <>
+                                <h4 className="p-3 mb-0 bg-primary text-white">Chat with {selectedUser.username}</h4>
+                                <div className="messages p-3 d-flex flex-column">
+                                    {currentMessages.length === 0 ? (
+                                        <p className="text-muted">No messages yet</p>
+                                    ) : (
+                                        currentMessages.map((msg, index) => (
+                                            <div
+                                                key={index}
+                                                className={Number(msg.senderId) === Number(userId) ? 'message-right' : 'message-left'}
+                                            >
+                                                <p className="mb-1">{msg.content}</p>
+                                                <small className="text-muted">{new Date(msg.timestamp).toLocaleTimeString()}</small>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                                <div className="p-3 mt-auto">
+                                    <div className="input-group">
+                                        <input
+                                            type="text"
+                                            className="form-control"
+                                            placeholder="Type a message..."
+                                            value={message}
+                                            onChange={(e) => setMessage(e.target.value)}
+                                        />
+                                        <button className="btn btn-primary" onClick={sendMessage}>
+                                            Send
+                                        </button>
+                                    </div>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="d-flex justify-content-center align-items-center h-100">
+                                <p className="text-muted">Select a user to start chatting</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
             </div>
         </div>
     );

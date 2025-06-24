@@ -46,12 +46,12 @@
 }
 
 .input-field:focus {
-    border: 2px solid #7fd762;
+    border: 2px solid #1487a7;
     background-color: white;
 }
 
 .login-button {
-    background-color: #7fd762;
+    background-color: #1487a7;
     color: white;
     padding: 10px 16px;
     border: none;
@@ -63,5 +63,5 @@
 }
 
 .login-button:hover {
-    background-color: #6ec34d;
+    background-color: #189abd;
 }

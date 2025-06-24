@@ -20,7 +20,7 @@
 
 .user-list {
     width: 25%;
-    background-color: #12342f;
+    background-color: #0f242d;
     display: flex;
     border-top-left-radius: 6px;
     border-bottom-left-radius: 6px;
@@ -28,7 +28,7 @@
 }
 
 .user-list-header {
-    background-color: #4dd05f;
+    background-color: #1487a7;
     padding: 0 16px;
     padding-bottom: 2px;
     display: flex;
@@ -50,7 +50,7 @@
 }
 
 .logout-button:hover {
-    background-color: #43b352;
+    background-color: #189abd;
     color: #12342f;
 }
 
@@ -61,18 +61,18 @@
 
 .user-list-item {
     padding: 12px 16px;
-    background-color: #18463f;
+    background-color: #16313cfb;
     border: none;
     color: white;
     text-align: left;
     width: 100%;
     cursor: pointer;
-    border-bottom: 1px solid #0f2d27;
+    border-bottom: 1px solid #0f192d;
     border-radius: 0%;
 }
 
 .user-list-item:hover {
-    background-color: #4dd05f;
+    background-color: #1487a7;
     color: black;
     border-bottom: 1px solid #0f2d27;
     border-top: 1px solid #0f2d27;
@@ -80,7 +80,7 @@
 }
 
 .user-list-item.active {
-    background-color: #4dd05f;
+    background-color: #1487a7;
     color: black;
     padding-top: 15px;
     padding-bottom: 15px;
@@ -110,7 +110,7 @@
 
 .chat-header {
     border-top-right-radius: 6px;
-    background-color: #4dd05f;
+    background-color: #1487a7;
     color: white;
     padding: 22px;
     padding-bottom: 23px;
@@ -138,13 +138,13 @@
 }
 
 .message-left {
-    background-color: rgb(55, 143, 148);
+    background-color: #1487a7;
     margin-left: auto;
     text-align: right;
 }
 
 .message-right {
-    background-color: #4dd05f;
+    background-color: #bccfd8ac;
     margin-right: auto;
     text-align: left;
 }
@@ -175,7 +175,7 @@
 }
 
 .send-button {
-    background-color: #4dd05f;
+    background-color: #1487a7;
     color: white;
     border: none;
     padding: 8px 16px;
@@ -185,7 +185,7 @@
 }
 
 .send-button:hover {
-    background-color: #40aa4e
+    background-color: #189abd
 }
 
 .no-user-selected {

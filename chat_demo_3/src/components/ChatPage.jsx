@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 
@@ -8,16 +9,22 @@ function ChatPage() {
     const [users, setUsers] = useState([]);
     const [selectedUser, setSelectedUser] = useState(null);
     const [messagesByUser, setMessagesByUser] = useState({});
+    const [unreadMessages, setUnreadMessages] = useState(new Set());
     const [message, setMessage] = useState('');
     const [stompClient, setStompClient] = useState(null);
     const [userId, setUserId] = useState(null);
+    const navigate = useNavigate();
+    const messagesEndRef = useRef(null);
+
+    // Автоскролл к последнему сообщению
+    const scrollToBottom = () => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    };
 
     useEffect(() => {
         // Fetch current user ID
-        console.log(`Fetching current user ID from ${API_BASE_URL}/api/auth/current`);
-        fetch(`${API_BASE_URL}/api/auth/current`, {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        })
+        console.log(`Fetching current user ID from ${API_BASE_URL}/api/auth/current?username=${username}`);
+        fetch(`${API_BASE_URL}/api/auth/current?username=${username}`)
             .then((res) => {
                 console.log('Current user response status:', res.status);
                 if (!res.ok) throw new Error('Failed to fetch current user');
@@ -30,10 +37,8 @@ function ChatPage() {
             .catch((error) => console.error('Error fetching user ID:', error));
 
         // Fetch users
-        console.log(`Fetching users from ${API_BASE_URL}/api/users`);
-        fetch(`${API_BASE_URL}/api/users`, {
-            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        })
+        console.log(`Fetching users from ${API_BASE_URL}/api/users?currentUsername=${username}`);
+        fetch(`${API_BASE_URL}/api/users?currentUsername=${username}`)
             .then((res) => {
                 console.log('Users response status:', res.status);
                 if (!res.ok) throw new Error('Failed to fetch users');
@@ -65,7 +70,6 @@ function ChatPage() {
                 client.subscribe('/topic/messages', (msg) => {
                     const message = JSON.parse(msg.body);
                     console.log('Received message:', message);
-                    // Добавляем только сообщения от других пользователей
                     if (Number(message.senderId) !== Number(userId)) {
                         const recipientId =
                             Number(message.senderId) === Number(userId)
@@ -75,6 +79,12 @@ function ChatPage() {
                             ...prev,
                             [recipientId]: [...(prev[recipientId] || []), message],
                         }));
+                        // Добавляем пользователя в unreadMessages, если он не выбран
+                        if (selectedUser?.id !== recipientId) {
+                            setUnreadMessages((prev) => new Set([...prev, recipientId]));
+                            console.log('Added to unreadMessages:', recipientId);
+                        }
+                        scrollToBottom();
                     } else {
                         console.log('Skipped own message:', message);
                     }
@@ -94,7 +104,41 @@ function ChatPage() {
             console.log('Disconnecting WebSocket');
             client.deactivate();
         };
-    }, [userId]);
+    }, [userId, username, selectedUser]);
+
+    // Загрузка сообщений при выборе пользователя
+    useEffect(() => {
+        if (userId && selectedUser) {
+            console.log(`Fetching messages for userId: ${userId} and recipientId: ${selectedUser.id}`);
+            fetch(`${API_BASE_URL}/api/messages?userId=${userId}&recipientId=${selectedUser.id}`)
+                .then((res) => {
+                    console.log('Messages response status:', res.status);
+                    if (!res.ok) throw new Error('Failed to fetch messages');
+                    return res.json();
+                })
+                .then((data) => {
+                    console.log('Fetched messages:', data);
+                    setMessagesByUser((prev) => ({
+                        ...prev,
+                        [selectedUser.id]: data,
+                    }));
+                    // Сбрасываем unreadMessages для выбранного пользователя
+                    setUnreadMessages((prev) => {
+                        const newSet = new Set(prev);
+                        newSet.delete(selectedUser.id);
+                        console.log('Removed from unreadMessages:', selectedUser.id);
+                        return newSet;
+                    });
+                })
+                .catch((error) => console.error('Error fetching messages:', error));
+        }
+    }, [selectedUser, userId]);
+
+    // Автоскролл после обновления сообщений
+    const currentMessages = selectedUser ? messagesByUser[selectedUser.id] || [] : [];
+    useEffect(() => {
+        scrollToBottom();
+    }, [currentMessages]);
 
     const sendMessage = () => {
         if (stompClient && message && selectedUser && userId) {
@@ -109,27 +153,48 @@ function ChatPage() {
                 destination: '/app/sendMessage',
                 body: JSON.stringify(msg),
             });
-            // Добавляем собственное сообщение локально
             setMessagesByUser((prev) => ({
                 ...prev,
                 [selectedUser.id]: [...(prev[selectedUser.id] || []), msg],
             }));
             setMessage('');
+            scrollToBottom();
         } else {
             console.warn('Cannot send message: missing', { stompClient, message, selectedUser, userId });
         }
     };
 
-    const currentMessages = selectedUser ? messagesByUser[selectedUser.id] || [] : [];
+    const handleLogout = () => {
+        console.log('Logging out user:', username);
+        localStorage.removeItem('username');
+        navigate('/login');
+    };
 
-    console.log('Rendering ChatPage with users:', users, 'selectedUser:', selectedUser, 'currentMessages:', currentMessages);
+    const handleSelectUser = (user) => {
+        console.log('Selected user:', user);
+        setSelectedUser(user);
+        // Сбрасываем unreadMessages для выбранного пользователя
+        setUnreadMessages((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(user.id);
+            console.log('Removed from unreadMessages:', user.id);
+            return newSet;
+        });
+    };
+
+    console.log('Rendering ChatPage with users:', users, 'selectedUser:', selectedUser, 'currentMessages:', currentMessages, 'unreadMessages:', [...unreadMessages]);
 
     return (
         <div className="chat-container">
             <div className="container-fluid h-100">
                 <div className="row h-100">
                     <div className="col-3 bg-light border-end p-0">
-                        <h4 className="p-3 mb-0 bg-primary text-white">Users</h4>
+                        <div className="p-3 d-flex justify-content-between align-items-center bg-primary text-white">
+                            <h4 className="mb-0">Users</h4>
+                            <button className="btn btn-sm btn-outline-light" onClick={handleLogout}>
+                                Logout
+                            </button>
+                        </div>
                         <div className="list-group list-group-flush">
                             {users.length === 0 ? (
                                 <div className="list-group-item">No users available</div>
@@ -138,13 +203,14 @@ function ChatPage() {
                                     <button
                                         key={user.id}
                                         type="button"
-                                        className={`list-group-item list-group-item-action ${selectedUser?.id === user.id ? 'active' : ''}`}
-                                        onClick={() => {
-                                            console.log('Selected user:', user);
-                                            setSelectedUser(user);
-                                        }}
+                                        className={`list-group-item list-group-item-action ${selectedUser?.id === user.id ? 'active' : ''
+                                            } ${unreadMessages.has(user.id) ? 'fw-bold' : ''}`}
+                                        onClick={() => handleSelectUser(user)}
                                     >
                                         {user.username}
+                                        {unreadMessages.has(user.id) && (
+                                            <span className="badge bg-danger rounded-pill ms-2">New</span>
+                                        )}
                                     </button>
                                 ))
                             )}
@@ -168,6 +234,7 @@ function ChatPage() {
                                             </div>
                                         ))
                                     )}
+                                    <div ref={messagesEndRef} />
                                 </div>
                                 <div className="p-3 mt-auto">
                                     <div className="input-group">

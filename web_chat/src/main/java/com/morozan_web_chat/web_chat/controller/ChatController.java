@@ -19,6 +19,7 @@ public class ChatController {
     @MessageMapping("/sendMessage")
     @SendTo("/topic/messages")
     public Message sendMessage(Message message) {
+        System.out.println("Received message: " + message);
         message.setTimestamp(LocalDateTime.now());
         messageRepository.save(message);
         return message;

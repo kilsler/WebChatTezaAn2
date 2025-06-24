@@ -4,7 +4,6 @@ import { useNavigate } from 'react-router-dom';
 function LoginPage() {
     const API_BASE_URL = 'http://localhost:8080';
     const [username, setUsername] = useState('');
-    const [password, setPassword] = useState('');
     const navigate = useNavigate();
 
     const handleLogin = async () => {
@@ -13,16 +12,15 @@ function LoginPage() {
             const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({ username }),
             });
             console.log('Response status:', response.status);
             const data = await response.json();
-            if (data.token) {
-                localStorage.setItem('token', data.token);
-                localStorage.setItem('username', username);
+            if (data.username) {
+                localStorage.setItem('username', data.username);
                 navigate('/chat');
             } else {
-                console.error('No token in response:', data);
+                console.error('No username in response:', data);
                 alert('Login failed. Please try again.');
             }
         } catch (error) {
@@ -44,17 +42,6 @@ function LoginPage() {
                         placeholder="Enter username"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                    />
-                </div>
-                <div className="mb-3">
-                    <label htmlFor="password" className="form-label">Password</label>
-                    <input
-                        type="password"
-                        id="password"
-                        className="form-control"
-                        placeholder="Enter password"
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
                     />
                 </div>
                 <button className="btn btn-primary w-100" onClick={handleLogin}>

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import '../styles/loginStyles.css';
 function LoginPage() {
     const API_BASE_URL = 'http://localhost:8080';
     const [username, setUsername] = useState('');
@@ -30,26 +30,27 @@ function LoginPage() {
     };
 
     return (
-        <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
-            <div className="card p-4 shadow" style={{ width: '400px' }}>
-                <h2 className="text-center mb-4">Login</h2>
-                <div className="mb-3">
-                    <label htmlFor="username" className="form-label">Username</label>
+        <div className="login-container">
+            <div className="login-card">
+                <h2 className="login-title">Login</h2>
+                <div className="input-group">
+                    <label htmlFor="username" className="input-label">Username</label>
                     <input
                         type="text"
                         id="username"
-                        className="form-control"
+                        className="input-field"
                         placeholder="Enter username"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
                     />
                 </div>
-                <button className="btn btn-primary w-100" onClick={handleLogin}>
+                <button className="login-button" onClick={handleLogin}>
                     Login
                 </button>
             </div>
         </div>
     );
+
 }
 
 export default LoginPage;

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
-
+import '../styles/chatStyles.css';
 function ChatPage() {
     const API_BASE_URL = 'http://localhost:8080';
     const username = localStorage.getItem('username');
@@ -186,81 +186,80 @@ function ChatPage() {
 
     return (
         <div className="chat-container">
-            <div className="container-fluid h-100">
-                <div className="row h-100">
-                    <div className="col-3 bg-light border-end p-0">
-                        <div className="p-3 d-flex justify-content-between align-items-center bg-primary text-white">
-                            <h4 className="mb-0">Users</h4>
-                            <button className="btn btn-sm btn-outline-light" onClick={handleLogout}>
-                                Logout
-                            </button>
-                        </div>
-                        <div className="list-group list-group-flush">
-                            {users.length === 0 ? (
-                                <div className="list-group-item">No users available</div>
-                            ) : (
-                                users.map((user) => (
-                                    <button
-                                        key={user.id}
-                                        type="button"
-                                        className={`list-group-item list-group-item-action ${selectedUser?.id === user.id ? 'active' : ''
-                                            } ${unreadMessages.has(user.id) ? 'fw-bold' : ''}`}
-                                        onClick={() => handleSelectUser(user)}
-                                    >
-                                        {user.username}
-                                        {unreadMessages.has(user.id) && (
-                                            <span className="badge bg-danger rounded-pill ms-2">New</span>
-                                        )}
-                                    </button>
-                                ))
-                            )}
-                        </div>
+            <div className="chat-layout">
+                <div className="user-list">
+                    <div className="user-list-header">
+                        <h4>Welcome {username}</h4>
+                        <button className="logout-button" onClick={handleLogout}>
+                            Logout
+                        </button>
                     </div>
-                    <div className="col-9 p-0 d-flex flex-column">
-                        {selectedUser ? (
-                            <>
-                                <h4 className="p-3 mb-0 bg-primary text-white">Chat with {selectedUser.username}</h4>
-                                <div className="messages p-3 d-flex flex-column">
-                                    {currentMessages.length === 0 ? (
-                                        <p className="text-muted">No messages yet</p>
-                                    ) : (
-                                        currentMessages.map((msg, index) => (
-                                            <div
-                                                key={index}
-                                                className={Number(msg.senderId) === Number(userId) ? 'message-right' : 'message-left'}
-                                            >
-                                                <p className="mb-1">{msg.content}</p>
-                                                <small className="text-muted">{new Date(msg.timestamp).toLocaleTimeString()}</small>
-                                            </div>
-                                        ))
-                                    )}
-                                    <div ref={messagesEndRef} />
-                                </div>
-                                <div className="p-3 mt-auto">
-                                    <div className="input-group">
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            placeholder="Type a message..."
-                                            value={message}
-                                            onChange={(e) => setMessage(e.target.value)}
-                                        />
-                                        <button className="btn btn-primary" onClick={sendMessage}>
-                                            Send
-                                        </button>
-                                    </div>
-                                </div>
-                            </>
+                    <div className="user-list-content">
+                        {users.length === 0 ? (
+                            <div className="user-list-item">No users available</div>
                         ) : (
-                            <div className="d-flex justify-content-center align-items-center h-100">
-                                <p className="text-muted">Select a user to start chatting</p>
-                            </div>
+                            users.map((user) => (
+                                <button
+                                    key={user.id}
+                                    type="button"
+                                    className={`user-list-item ${selectedUser?.id === user.id ? 'active' : ''} ${unreadMessages.has(user.id) ? 'bold' : ''}`}
+                                    onClick={() => handleSelectUser(user)}
+                                >
+                                    {user.username}
+                                    {unreadMessages.has(user.id) && (
+                                        <span className="badge">New</span>
+                                    )}
+                                </button>
+                            ))
                         )}
                     </div>
+                </div>
+                <div className="chat-panel">
+                    {selectedUser ? (
+                        <>
+                            <h4 className="chat-header">Chat with {selectedUser.username}</h4>
+                            <div className="messages">
+                                {currentMessages.length === 0 ? (
+                                    <p className="no-messages">No messages yet</p>
+                                ) : (
+                                    currentMessages.map((msg, index) => (
+                                        <div
+                                            key={index}
+                                            className={Number(msg.senderId) === Number(userId) ? 'message-right' : 'message-left'}
+                                        >
+                                            <p className="message-content">{msg.content}</p>
+                                            <small className="message-time">{new Date(msg.timestamp).toLocaleTimeString()}</small>
+                                        </div>
+                                    ))
+                                )}
+                                <div ref={messagesEndRef} />
+                            </div>
+                            <div className="input-area">
+                                <input
+                                    type="text"
+                                    className="input-field"
+                                    placeholder="Type a message..."
+                                    value={message}
+                                    onChange={(e) => setMessage(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            sendMessage();
+                                        }
+                                    }}
+                                />
+                                <button className="send-button" onClick={sendMessage}>
+                                    Send
+                                </button>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="no-user-selected">
+                            <p>Select a user to start chatting</p>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
     );
 }
-
 export default ChatPage;

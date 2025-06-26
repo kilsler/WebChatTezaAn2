@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import SockJS from 'sockjs-client';
 import { Client } from '@stomp/stompjs';
 import '../styles/chatStyles.css';
+
 function ChatPage() {
     const API_BASE_URL = 'http://localhost:8080';
     const username = localStorage.getItem('username');
@@ -16,14 +17,12 @@ function ChatPage() {
     const navigate = useNavigate();
     const messagesEndRef = useRef(null);
 
-    // Автоскролл к последнему сообщению
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     };
 
     useEffect(() => {
         // Fetch current user ID
-        console.log(`Fetching current user ID from ${API_BASE_URL}/api/auth/current?username=${username}`);
         fetch(`${API_BASE_URL}/api/auth/current?username=${username}`)
             .then((res) => {
                 console.log('Current user response status:', res.status);
@@ -37,7 +36,6 @@ function ChatPage() {
             .catch((error) => console.error('Error fetching user ID:', error));
 
         // Fetch users
-        console.log(`Fetching users from ${API_BASE_URL}/api/users?currentUsername=${username}`);
         fetch(`${API_BASE_URL}/api/users?currentUsername=${username}`)
             .then((res) => {
                 console.log('Users response status:', res.status);
@@ -82,7 +80,6 @@ function ChatPage() {
                         // Добавляем пользователя в unreadMessages, если он не выбран
                         if (selectedUser?.id !== recipientId) {
                             setUnreadMessages((prev) => new Set([...prev, recipientId]));
-                            console.log('Added to unreadMessages:', recipientId);
                         }
                         scrollToBottom();
                     } else {
@@ -182,7 +179,11 @@ function ChatPage() {
         });
     };
 
-    console.log('Rendering ChatPage with users:', users, 'selectedUser:', selectedUser, 'currentMessages:', currentMessages, 'unreadMessages:', [...unreadMessages]);
+    if (!username) {
+        console.error('No username found in localStorage');
+        navigate('/login');
+        return null; // Prevent rendering if no username
+    }
 
     return (
         <div className="chat-container">

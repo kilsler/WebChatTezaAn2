@@ -23,7 +23,6 @@ public class MessageController {
     public List<Message> getMessagesBetweenUsers(@RequestParam Long userId, @RequestParam Long recipientId) {
         System.out.println("Fetching messages between userId: " + userId + " and recipientId: " + recipientId);
         List<Message> messages = messageRepository.findMessagesBetweenUsers(userId, recipientId);
-        System.out.println("Returning messages: " + messages.size());
         return messages;
     }
 }

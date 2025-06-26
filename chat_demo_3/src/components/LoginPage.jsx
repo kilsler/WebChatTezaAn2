@@ -1,12 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/loginStyles.css';
+
 function LoginPage() {
     const API_BASE_URL = 'http://localhost:8080';
     const [username, setUsername] = useState('');
     const navigate = useNavigate();
 
     const handleLogin = async () => {
+        if (!username.trim()) {
+            alert('Please enter a username');
+            return;
+        }
         console.log(`Sending login request to ${API_BASE_URL}/api/auth/login`);
         try {
             const response = await fetch(`${API_BASE_URL}/api/auth/login`, {

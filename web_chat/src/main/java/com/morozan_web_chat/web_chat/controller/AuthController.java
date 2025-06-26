@@ -18,12 +18,16 @@ public class AuthController {
     public User login(@RequestBody User user) {
         String username = user.getUsername();
         System.out.println("Login attempt for username: " + username);
-        return userRepository.findByUsername(username)
-                .orElseGet(() -> {
-                    User newUser = new User();
-                    newUser.setUsername(username);
-                    return userRepository.save(newUser);
-                });
+        if(!username.isEmpty()) {
+            return userRepository.findByUsername(username)
+                    .orElseGet(() -> {
+                        User newUser = new User();
+                        newUser.setUsername(username);
+                        return userRepository.save(newUser);
+                    });
+        }else{
+            return null;
+        }
     }
 
     @GetMapping("/current")
